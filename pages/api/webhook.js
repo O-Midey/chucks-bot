@@ -1,34 +1,38 @@
-import axios from "axios";
-
 export default async function handler(req, res) {
-  // Handle GET request for webhook verification
-  if (req.method === "GET") {
-    const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
+  try {
+    // Handle GET request for webhook verification
+    if (req.method === "GET") {
+      const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-    console.log("Webhook verification attempt:", {
-      mode,
-      token: token ? "***" : "missing",
-    });
+      if (!VERIFY_TOKEN) {
+        console.error("VERIFY_TOKEN not set in environment variables");
+        return res.status(500).json({ error: "Server configuration error" });
+      }
 
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("Webhook verified successfully");
-      return res.status(200).send(challenge);
-    } else {
-      console.log("Webhook verification failed");
-      return res.status(403).send("Forbidden");
+      const mode = req.query["hub.mode"];
+      const token = req.query["hub.verify_token"];
+      const challenge = req.query["hub.challenge"];
+
+      console.log("Verification attempt:", {
+        mode,
+        hasToken: !!token,
+        hasChallenge: !!challenge,
+      });
+
+      if (mode === "subscribe" && token === VERIFY_TOKEN) {
+        console.log("✅ Webhook verified");
+        return res.status(200).send(challenge);
+      } else {
+        console.log("❌ Verification failed");
+        return res.status(403).send("Forbidden");
+      }
     }
-  }
 
-  // Handle POST request for incoming messages
-  if (req.method === "POST") {
-    try {
+    // Handle POST request for incoming messages
+    if (req.method === "POST") {
       const body = req.body;
 
-      // Log incoming webhook (helpful for debugging)
-      console.log("Webhook received:", JSON.stringify(body, null, 2));
+      console.log("📥 Webhook POST received");
 
       // Check if this is a message
       if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
@@ -37,15 +41,24 @@ export default async function handler(req, res) {
         const text = message.text?.body;
         const messageType = message.type;
 
-        console.log(
-          `Message received - From: ${from}, Type: ${messageType}, Text: ${text}`
-        );
+        console.log(`Message: ${messageType} from ${from}`);
 
         // Only reply to text messages
         if (messageType === "text" && text) {
+          const API_KEY = process.env.DIALOG_360_API_KEY;
+
+          if (!API_KEY) {
+            console.error("DIALOG_360_API_KEY not set");
+            return res
+              .status(200)
+              .json({ success: false, error: "API key missing" });
+          }
+
           const reply = `Hello! Welcome to Chuks! You said: "${text}". How can I help you today?`;
 
-          // Send reply via 360dialog API
+          // Import axios at the top if not already
+          const axios = require("axios");
+
           const response = await axios.post(
             "https://waba.360dialog.io/v1/messages",
             {
@@ -56,40 +69,28 @@ export default async function handler(req, res) {
             },
             {
               headers: {
-                "D360-API-KEY": process.env.DIALOG_360_API_KEY,
+                "D360-API-KEY": API_KEY,
                 "Content-Type": "application/json",
               },
             }
           );
 
-          console.log("Reply sent successfully:", response.data);
+          console.log("✅ Reply sent");
         }
       }
 
-      // Always return 200 to acknowledge receipt
       return res.status(200).json({ success: true });
-    } catch (error) {
-      console.error(
-        "Error processing webhook:",
-        error.response?.data || error.message
-      );
-      // Still return 200 to prevent 360dialog from retrying
-      return res.status(200).json({ success: true, error: error.message });
     }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    console.error("❌ Error in webhook:", error.message);
+    console.error("Stack:", error.stack);
+
+    // Return 200 to prevent retries from 360dialog
+    return res.status(200).json({
+      success: false,
+      error: error.message,
+    });
   }
-
-  // Handle other methods
-  return res.status(405).json({ error: "Method not allowed" });
 }
-```
-
-## Vercel Configuration
-
-### 1. Environment Variables in Vercel
-
-Go to your Vercel project dashboard:
-1. Click on **Settings** → **Environment Variables**
-2. Add these variables:
-```;
-VERIFY_TOKEN = your_secret_verify_token_here;
-DIALOG_360_API_KEY = your_360dialog_api_key;
