@@ -1,5 +1,6 @@
 import axios from "axios";
 
+const BASE_URL = "https://waba-v2.360dialog.io";
 export default async function handler(req, res) {
   try {
     // Handle GET request for webhook verification
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
           console.log("🚀 Attempting to send reply to:", from);
 
           const response = await axios.post(
-            "https://waba.360dialog.io/v1/messages",
+            `${BASE_URL}/messages`,
             {
               messaging_product: "whatsapp",
               to: from,
