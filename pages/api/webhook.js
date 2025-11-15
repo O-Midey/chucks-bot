@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export default async function handler(req, res) {
   try {
     // Handle GET request for webhook verification
@@ -33,6 +35,7 @@ export default async function handler(req, res) {
       const body = req.body;
 
       console.log("📥 Webhook POST received");
+      console.log("Body:", JSON.stringify(body, null, 2)); // Added for debugging
 
       // Check if this is a message
       if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
@@ -42,22 +45,22 @@ export default async function handler(req, res) {
         const messageType = message.type;
 
         console.log(`Message: ${messageType} from ${from}`);
+        console.log(`Text: "${text}"`);
 
         // Only reply to text messages
         if (messageType === "text" && text) {
           const API_KEY = process.env.DIALOG_360_API_KEY;
 
           if (!API_KEY) {
-            console.error("DIALOG_360_API_KEY not set");
+            console.error("❌ DIALOG_360_API_KEY not set");
             return res
               .status(200)
               .json({ success: false, error: "API key missing" });
           }
 
-          const reply = `Hello! Welcome to Chuks! You said: "${text}". How can I help you today?`;
+          const reply = `Hello and Welcome! I'm Chuks, your Insurance AI assistant. How can I help you today?`;
 
-          // Import axios at the top if not already
-          const axios = require("axios");
+          console.log("🚀 Attempting to send reply to:", from);
 
           const response = await axios.post(
             "https://waba.360dialog.io/v1/messages",
@@ -75,8 +78,13 @@ export default async function handler(req, res) {
             }
           );
 
-          console.log("✅ Reply sent");
+          console.log("✅ Reply sent successfully!");
+          console.log("Message ID:", response.data.messages?.[0]?.id);
+        } else {
+          console.log("⚠️ Not a text message or empty text, skipping reply");
         }
+      } else {
+        console.log("⚠️ No message found in webhook payload");
       }
 
       return res.status(200).json({ success: true });
