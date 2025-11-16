@@ -59,7 +59,7 @@ export default async function handler(req, res) {
               .json({ success: false, error: "API key missing" });
           }
 
-          const reply = `Hello and Welcome! I'm Chuks, your Insurance AI assistant. How can I help you today? 😊`;
+          const reply = `Hello! I'm Chuks, your AI Insurance assistant. I can help you buy affordable, fast and reliable insurance. What insurance do you need today? /n 1️⃣ Car Insurance /n 2️⃣ Health Insurance 3️⃣ Travel Insurance 4️⃣ Life Insurance 5️⃣Gadget/Phone Insurance`;
 
           console.log("🚀 Attempting to send reply to:", from);
 
