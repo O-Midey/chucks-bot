@@ -11,6 +11,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "dev:watch": "nodemon --watch . --ext js,jsx,ts,tsx,md,json --exec \"npm run dev\""
+
   }
 }
