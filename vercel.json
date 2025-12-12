@@ -4,10 +4,5 @@
       "memory": 1024,
       "maxDuration": 10
     }
-  },
-  "env": {
-    "DIALOG_360_API_KEY": "@dialog-360-api-key",
-    "VERIFY_TOKEN": "@webhook-verify-token",
-    "TEST_MODE": "false"
   }
 }
