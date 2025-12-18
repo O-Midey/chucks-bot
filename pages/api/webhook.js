@@ -28,18 +28,10 @@ export default async function handler(req, res) {
       const token = req.query["hub.verify_token"];
       const challenge = req.query["hub.challenge"];
 
-      console.log("Verification attempt:", {
-        mode,
-        hasToken: !!token,
-        hasChallenge: !!challenge,
-      });
-
       if (mode === "subscribe" && token === VERIFY_TOKEN) {
-        console.log("✅ Webhook verified");
         res.status(200).send(challenge);
         return;
       } else {
-        console.log("❌ Verification failed");
         res.status(403).send("Forbidden");
         return;
       }
@@ -49,14 +41,10 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const body = req.body;
 
-      console.log("📥 Webhook POST received");
-      console.log("Body:", JSON.stringify(body, null, 2));
-
       // Extract message from webhook payload
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
       if (!message) {
-        console.log("⚠️ No message found in webhook payload");
         res.status(200).json({ success: true });
         return;
       }
@@ -65,12 +53,8 @@ export default async function handler(req, res) {
       const text = message.text?.body;
       const messageType = message.type;
 
-      console.log(`Message: ${messageType} from ${from}`);
-      console.log(`Text: "${text}"`);
-
       // Only reply to text messages
       if (messageType !== "text" || !text) {
-        console.log("⚠️ Not a text message or empty text, skipping reply");
         res.status(200).json({ success: true });
         return;
       }
@@ -83,10 +67,6 @@ export default async function handler(req, res) {
 
       if (isTestMode) {
         // ============ TEST MODE ============
-        console.log("🧪 TEST MODE - Would send this reply:");
-        console.log(response.message);
-        console.log("State:", response.state);
-        console.log("✅ Test successful! (No actual WhatsApp message sent)");
 
         res.status(200).json({
           success: true,
@@ -104,18 +84,12 @@ export default async function handler(req, res) {
           return;
         }
 
-        console.log("🚀 Attempting to send reply to:", from);
-
         try {
           const whatsappService = new WhatsAppService(API_KEY);
           const result = await whatsappService.sendMessage(
             from,
             response.message
           );
-
-          console.log("✅ Reply sent successfully!");
-          console.log("Message ID:", result.messageId);
-          console.log("Current State:", response.state);
 
           res.status(200).json({ success: true });
           return;
