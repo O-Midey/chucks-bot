@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
-import { RedisTest } from './redis-test.js';
+import { RedisTest } from "./redis-test.js";
+import { EnhancedTests } from "./enhanced-tests.js";
 
 async function runTests() {
-  const tester = new RedisTest();
-  
+  const redisTester = new RedisTest();
+  const enhancedTester = new EnhancedTests();
+
   try {
-    await tester.runAllTests();
+    await redisTester.runAllTests();
+    console.log("\n--- Now running enhanced tests ---");
+    await enhancedTester.runAllTests();
     process.exit(0);
   } catch (error) {
-    console.error('❌ Test runner failed:', error);
+    console.error("❌ Test runner failed:", error);
     process.exit(1);
   }
 }
