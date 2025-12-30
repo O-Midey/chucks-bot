@@ -1,6 +1,8 @@
 import { WhatsAppService } from "../../lib/services/whatsappService.js";
 import { MessageRouter } from "../../lib/messageRouter.js";
 import { SessionManager } from "../../lib/session/sessionManager.js";
+import loggerModule from "../../lib/utils/logger.js";
+const { requestLogger, logger } = loggerModule;
 
 export default async function handler(req, res) {
   // CORS headers
@@ -14,12 +16,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // attach request logger (adds req.id and req.log)
+    requestLogger(req, res);
     // ============ WEBHOOK VERIFICATION (GET) ============
     if (req.method === "GET") {
       const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
       if (!VERIFY_TOKEN) {
-        console.error("VERIFY_TOKEN not set in environment variables");
+        logger.error("VERIFY_TOKEN not set in environment variables");
         res.status(500).json({ error: "Server configuration error" });
         return;
       }
@@ -40,6 +44,10 @@ export default async function handler(req, res) {
     // ============ MESSAGE HANDLING (POST) ============
     if (req.method === "POST") {
       const body = req.body;
+
+      // structured webhook log
+      // note: logger is the pino instance; use the module helper for structured webhook logging
+      loggerModule.logWebhook(req, body);
 
       // Extract message from webhook payload
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -79,7 +87,7 @@ export default async function handler(req, res) {
       } else {
         // ============ PRODUCTION MODE ============
         if (!API_KEY) {
-          console.error("❌ DIALOG_360_API_KEY not set");
+          logger.error("DIALOG_360_API_KEY not set");
           res.status(200).json({ success: false, error: "API key missing" });
           return;
         }
@@ -94,11 +102,14 @@ export default async function handler(req, res) {
           res.status(200).json({ success: true });
           return;
         } catch (whatsappError) {
-          console.error(
-            "❌ WhatsApp API Error:",
-            whatsappError.response?.status
+          logger.error(
+            {
+              err: whatsappError,
+              status: whatsappError.response?.status,
+              details: whatsappError.response?.data,
+            },
+            "WhatsApp API error"
           );
-          console.error("Error details:", whatsappError.response?.data);
 
           // Still return 200 to prevent 360dialog retries
           res.status(200).json({
