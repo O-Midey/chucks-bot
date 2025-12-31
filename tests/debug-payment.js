@@ -1,11 +1,20 @@
 // Debug payment configuration
 console.log("🔍 Payment Configuration Check:");
-console.log("GLOBALPAY_BASE_URL:", process.env.GLOBALPAY_BASE_URL ? "✅ Set" : "❌ Missing");
-console.log("PAYMENT_BASIC_AUTH_USERNAME:", process.env.PAYMENT_BASIC_AUTH_USERNAME ? "✅ Set" : "❌ Missing");
-console.log("PAYMENT_BASIC_AUTH_PASSWORD:", process.env.PAYMENT_BASIC_AUTH_PASSWORD ? "✅ Set" : "❌ Missing");
+console.log(
+  "GLOBALPAY_BASE_URL:",
+  process.env.GLOBALPAY_BASE_URL ? "✅ Set" : "❌ Missing"
+);
+console.log(
+  "PAYMENT_BASIC_AUTH_USERNAME:",
+  process.env.PAYMENT_BASIC_AUTH_USERNAME ? "✅ Set" : "❌ Missing"
+);
+console.log(
+  "PAYMENT_BASIC_AUTH_PASSWORD:",
+  process.env.PAYMENT_BASIC_AUTH_PASSWORD ? "✅ Set" : "❌ Missing"
+);
 
 // Test API connection
-import { GlobalPayAPIService } from "./lib/services/globalPayApiService.js";
+import { GlobalPayAPIService } from "../lib/services/globalPayApiService.js";
 
 async function testPaymentAPI() {
   try {
@@ -20,7 +29,7 @@ async function testPaymentAPI() {
       customerEmail: "test@example.com",
       customerPhone: "08012345678",
       customerAddress: "Test Address",
-      merchantTransactionReference: `TEST_${Date.now()}`
+      merchantTransactionReference: `TEST_${Date.now()}`,
     };
 
     console.log("\n🧪 Testing payment initialization...");

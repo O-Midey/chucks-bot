@@ -1,10 +1,11 @@
 import { WhatsAppService } from "../../lib/services/whatsappService.js";
 import { MessageRouter } from "../../lib/messageRouter.js";
 import { SessionManager } from "../../lib/session/sessionManager.js";
-import loggerModule from "../../lib/utils/logger.js";
-const { requestLogger, logger } = loggerModule;
+import { serverLogger } from "../../lib/utils/comprehensiveLogger.js";
 
 export default async function handler(req, res) {
+  const startTime = Date.now();
+
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST");
@@ -16,14 +17,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // attach request logger (adds req.id and req.log)
-    requestLogger(req, res);
     // ============ WEBHOOK VERIFICATION (GET) ============
     if (req.method === "GET") {
       const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
       if (!VERIFY_TOKEN) {
-        logger.error("VERIFY_TOKEN not set in environment variables");
+        serverLogger.error("VERIFY_TOKEN not set in environment variables");
         res.status(500).json({ error: "Server configuration error" });
         return;
       }
@@ -32,10 +31,17 @@ export default async function handler(req, res) {
       const token = req.query["hub.verify_token"];
       const challenge = req.query["hub.challenge"];
 
+      serverLogger.api.request("GET", "/api/webhook", "webhook_verification", {
+        mode,
+        tokenMatch: token === VERIFY_TOKEN,
+      });
+
       if (mode === "subscribe" && token === VERIFY_TOKEN) {
+        serverLogger.info("Webhook verification successful", { challenge });
         res.status(200).send(challenge);
         return;
       } else {
+        serverLogger.warn("Webhook verification failed", { mode, tokenMatch: token === VERIFY_TOKEN });
         res.status(403).send("Forbidden");
         return;
       }
@@ -45,14 +51,11 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const body = req.body;
 
-      // structured webhook log
-      // note: logger is the pino instance; use the module helper for structured webhook logging
-      loggerModule.logWebhook(req, body);
-
       // Extract message from webhook payload
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
       if (!message) {
+        serverLogger.api.response("POST", "/api/webhook", 200, Date.now() - startTime, "no_message");
         res.status(200).json({ success: true });
         return;
       }
@@ -61,8 +64,12 @@ export default async function handler(req, res) {
       const text = message.text?.body;
       const messageType = message.type;
 
+      serverLogger.user.input(from, text, "webhook");
+      serverLogger.whatsapp.messageReceived(from, messageType, text?.length || 0);
+
       // Only reply to text messages
       if (messageType !== "text" || !text) {
+        serverLogger.info("Ignoring non-text message", { messageType, from });
         res.status(200).json({ success: true });
         return;
       }
@@ -70,11 +77,14 @@ export default async function handler(req, res) {
       const API_KEY = process.env.DIALOG_360_API_KEY;
       const isTestMode = !API_KEY || process.env.TEST_MODE === "true";
 
+      serverLogger.info("Processing message", { from, textLength: text.length, isTestMode });
+
       // Route message through message router
       const response = await MessageRouter.route(from, text);
 
       if (isTestMode) {
         // ============ TEST MODE ============
+        serverLogger.info("Test mode response", { from, state: response.state });
 
         res.status(200).json({
           success: true,
@@ -87,7 +97,7 @@ export default async function handler(req, res) {
       } else {
         // ============ PRODUCTION MODE ============
         if (!API_KEY) {
-          logger.error("DIALOG_360_API_KEY not set");
+          serverLogger.error("DIALOG_360_API_KEY not set");
           res.status(200).json({ success: false, error: "API key missing" });
           return;
         }
@@ -99,17 +109,13 @@ export default async function handler(req, res) {
             response.message
           );
 
+          serverLogger.whatsapp.messageSent(from, response.message.length, true);
+          serverLogger.api.response("POST", "/api/webhook", 200, Date.now() - startTime, from);
+
           res.status(200).json({ success: true });
           return;
         } catch (whatsappError) {
-          logger.error(
-            {
-              err: whatsappError,
-              status: whatsappError.response?.status,
-              details: whatsappError.response?.data,
-            },
-            "WhatsApp API error"
-          );
+          serverLogger.external.error("whatsapp", "/send", whatsappError);
 
           // Still return 200 to prevent 360dialog retries
           res.status(200).json({
@@ -123,11 +129,11 @@ export default async function handler(req, res) {
     }
 
     // Unsupported method
+    serverLogger.warn("Unsupported method", { method: req.method });
     res.status(405).json({ error: "Method not allowed" });
     return;
   } catch (error) {
-    console.error("❌ Error in webhook:", error.message);
-    console.error("Stack:", error.stack);
+    serverLogger.api.error("POST", "/api/webhook", error, req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from);
 
     // Return 200 to prevent retries from 360dialog
     res.status(200).json({
@@ -140,5 +146,7 @@ export default async function handler(req, res) {
 
 // Cleanup function (can be called from a cron job)
 export function cleanupSessions() {
-  SessionManager.cleanupOldSessions();
+  serverLogger.info("Starting session cleanup");
+  const cleaned = SessionManager.cleanupOldSessions();
+  serverLogger.info("Session cleanup completed", { cleanedSessions: cleaned });
 }
