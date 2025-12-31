@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       PaymentLogger.logWebhook(logKey, true, false);
     } else {
       console.warn(
-        `[PAYMENT] No GLOBALPAY_WEBHOOK_SECRET configured. Skipping signature validation (WARNING: PRODUCTION RISK).`
+        "[PAYMENT] No GLOBALPAY_WEBHOOK_SECRET configured. Skipping signature validation (WARNING: PRODUCTION RISK)."
       );
     }
 

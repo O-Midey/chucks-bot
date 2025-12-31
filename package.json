@@ -15,9 +15,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "dev:watch": "nodemon --watch . --ext js,jsx,ts,tsx,md,json --exec \"npm run dev\""
+    "dev:watch": "nodemon --watch . --ext js,jsx,ts,tsx,md,json --exec \"npm run dev\"",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "pino-pretty": "^13.1.3"
   }
 }
